@@ -1,0 +1,18 @@
+# sudo fio seq_128k_write_zero_pattern.fio
+[global]
+ioengine=libaio
+direct=1
+rw=write
+size=100%
+bs=128k
+iodepth=1024
+numjobs=1
+thread=1
+loops=1
+zero_buffers
+
+[device1]
+filename=/dev/nvme0n1
+
+#[device2]
+#filename=/dev/nvme1n1

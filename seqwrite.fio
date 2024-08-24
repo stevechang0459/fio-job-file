@@ -1,0 +1,34 @@
+# sudo FILENAME=nvme0n1 BS=128 LOOPS=1 fio seqwrite.fio
+[global]
+
+# 1.13.3. Job description
+loops=${LOOPS}
+numjobs=1
+
+# 1.13.6. I/O type
+direct=1
+readwrite=write # Sequential writes.
+
+# 1.13.7. Block size
+bs=${BS}k
+
+# 1.13.9. I/O size
+size=100%
+
+# 1.13.10. I/O engine
+ioengine=libaio
+
+# 1.13.12. I/O depth
+iodepth=128
+
+# 1.13.16. Threads, processes and job synchronization
+#thread=1
+
+# 1.13.20. Error handling
+#continue_on_error=all
+
+[device1]
+filename=/dev/${FILENAME}
+
+#[device2]
+#filename=/dev/nvme1n1
