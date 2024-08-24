@@ -1,0 +1,13 @@
+[global]
+ioengine=libaio
+direct=1
+rw=write
+bs=64k
+iodepth=256
+loops=1
+
+[device1]
+filename=/dev/nvme0n1
+
+#[device2]
+#filename=/dev/nvme1n1

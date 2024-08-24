@@ -1,0 +1,17 @@
+[global]
+ioengine=libaio
+direct=1
+rw=randwrite
+bs=1024k
+offset=50%
+iodepth=256
+numjobs=4
+thread=1
+randrepeat=0
+loops=1
+
+[device1]
+filename=/dev/nvme0n1
+
+#[device2]
+#filename=/dev/nvme1n1
