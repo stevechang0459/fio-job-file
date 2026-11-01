@@ -1,0 +1,50 @@
+[global]
+ioengine=libaio
+direct=1
+bs=4k
+# Replace with your target NVMe or SATA device path
+filename=/dev/nvme0n1
+# Stop immediately when an abort or timeout error occurs to preserve FW state
+exitall_on_error=1
+continue_on_error=none
+group_reporting=1
+
+# -------------------------------------------------------------------------
+# Phase 0: Trim (Deallocate) the entire drive (0% - 100%) before starting
+# Use a large block size (1G) so the full-drive discard finishes in seconds.
+# -------------------------------------------------------------------------
+[phase0_trim_all]
+offset=0%
+size=100%
+bs=1g
+rw=trim
+iodepth=1
+numjobs=1
+
+# -------------------------------------------------------------------------
+# Phase 1: Fill Zone A (0% - 1%) sequentially with 1MB blocks
+# CRITICAL: Must include 'stonewall' so it waits for Phase 0 Trim to finish!
+# Result: Physical superblocks holding Zone A data are sealed with 100% Valid Count.
+# -------------------------------------------------------------------------
+[phase1_fill_zone_A]
+stonewall
+offset=0%
+size=1%
+bs=1024k
+rw=write
+iodepth=32
+numjobs=1
+
+# -------------------------------------------------------------------------
+# Phase 2: Pre-fill Zone B (1% - 85%) with 1MB sequential writes (1 pass)
+# Quickly maps the 84% LBA range in Zone B at peak speed so subsequent
+# Phase 3B random writes are guaranteed to overwrite valid mapped LBAs.
+# -------------------------------------------------------------------------
+[phase2_prefill_zone_B]
+stonewall
+offset=1%
+size=84%
+bs=1024k
+rw=write
+iodepth=64
+numjobs=1
