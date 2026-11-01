@@ -1,0 +1,110 @@
+[global]
+ioengine=libaio
+direct=1
+bs=4k
+# Replace with your target NVMe or SATA device path
+filename=/dev/nvme0n1
+# Stop immediately when an abort or timeout error occurs to preserve FW state
+exitall_on_error=1
+continue_on_error=none
+group_reporting=1
+
+# -------------------------------------------------------------------------
+# Phase 0: Trim (Deallocate) the entire drive (0% - 100%) before starting
+# Use a large block size (1G) so the full-drive discard finishes in seconds.
+# -------------------------------------------------------------------------
+[phase0_trim_all]
+offset=0%
+size=100%
+bs=1g
+rw=trim
+iodepth=1
+numjobs=1
+
+# -------------------------------------------------------------------------
+# Phase 1: Fill Zone A (0% - 64%) sequentially with 1MB blocks to exhaust SLC cache
+# CRITICAL: Must include 'stonewall' so it waits for Phase 0 Trim to finish!
+# Exhausts dynamic SLC cache and maps the 64% LBA range in Zone A so subsequent
+# Phase 3B random writes overwrite valid mapped LBAs without free SLC buffer.
+# -------------------------------------------------------------------------
+[phase1_fill_zone_A]
+stonewall
+offset=0%
+size=64%
+bs=1024k
+rw=write
+iodepth=64
+numjobs=1
+
+# -------------------------------------------------------------------------
+# Phase 2: Fill Zone B (64% - 65%) sequentially after SLC cache is full
+# Ensures physical superblocks holding Zone B data at offset 64% are sealed
+# in TLC blocks with 100% Valid Count for Phase 3A Read Disturb hammering.
+# -------------------------------------------------------------------------
+[phase2_fill_zone_B]
+stonewall
+offset=64%
+size=1%
+bs=1024k
+rw=write
+iodepth=64
+numjobs=1
+
+# -------------------------------------------------------------------------
+# Phase 3A: Hammer a narrow 16MB slice in Zone B (offset 64%) with 256K reads
+# 'stonewall' waits for Phase 2 to finish and starts a new reporting group.
+# 4 jobs x iodepth 1024 saturate all NAND channels on the post-SLC closed
+# block range to rapidly trigger Read Disturb and slow down background merges.
+# -------------------------------------------------------------------------
+[phase3_read_zone_B]
+stonewall
+offset=64%
+size=16m
+rw=randread
+bs=256k
+norandommap=1
+iodepth=1024
+numjobs=4
+time_based=1
+runtime=36000
+#rate_iops=256
+rate_iops=384
+
+# -------------------------------------------------------------------------
+# Phase 3B-1: Pure async Write job in Zone A (NO fsync so libaio NEVER blocks!)
+# NO 'stonewall' here so it runs in parallel with [phase3_read_zone_B].
+# Continuously pumps 4K-16K writes into Zone A (0% - 64%) at 32 IOPS x 4 jobs
+# (128 Write IOPS total), filling iodepth=64 even when the SSD stalls.
+# -------------------------------------------------------------------------
+[phase3_write_zone_A]
+offset=0%
+size=64%
+rw=randwrite
+bsrange=4k-16k
+norandommap=1
+iodepth=64
+numjobs=2
+randrepeat=0
+time_based=1
+runtime=36000
+rate_iops=8
+
+# -------------------------------------------------------------------------
+# Phase 3B-2: Dedicated Flush job in Zone A running in parallel (NO 'stonewall')
+# Issues 4K writes + immediate Flush (fsync=1) into Zone A (0% - 64%) at 4 IOPS
+# (4 Flushes/sec) to continuously trigger flush without blocking
+# [phase3_write_zone_A] from queuing new async writes.
+# -------------------------------------------------------------------------
+[phase3_flush_zone_A]
+offset=0%
+size=64%
+rw=randwrite
+bs=4k
+norandommap=1
+iodepth=1
+numjobs=1
+randrepeat=0
+time_based=1
+runtime=36000
+rate_iops=4
+fsync=1
