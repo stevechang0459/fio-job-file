@@ -49,8 +49,8 @@ rate_iops=32
 # -------------------------------------------------------------------------
 # Phase 3B-2: Dedicated Flush job running in parallel (NO 'stonewall')
 # Issues 4K writes + immediate Flush (fsync=1) at 4 IOPS (4 Flushes/sec)
-# to continuously trigger TBL_FLUSH / TBL_MERGE without blocking
-# [phase3_write_zone_B] from queuing new async writes.
+# to continuously trigger flush without blocking [phase3_write_zone_B] from
+# queuing new async writes.
 # -------------------------------------------------------------------------
 [phase3_flush_zone_B]
 offset=1%

@@ -36,11 +36,11 @@ iodepth=32
 numjobs=1
 
 # -------------------------------------------------------------------------
-# Phase 2: Pre-fill Zone B (1% - 85%) with 1MB sequential writes (1 pass)
+# Phase 2: Fill Zone B (1% - 85%) with 1MB sequential writes (1 pass)
 # Quickly maps the 84% LBA range in Zone B at peak speed so subsequent
 # Phase 3B random writes are guaranteed to overwrite valid mapped LBAs.
 # -------------------------------------------------------------------------
-[phase2_prefill_zone_B]
+[phase2_fill_zone_B]
 stonewall
 offset=1%
 size=84%
@@ -89,8 +89,8 @@ rate_iops=32
 # -------------------------------------------------------------------------
 # Phase 3B-2: Dedicated Flush job running in parallel (NO 'stonewall')
 # Issues 4K writes + immediate Flush (fsync=1) at 4 IOPS (4 Flushes/sec)
-# to continuously trigger TBL_FLUSH / TBL_MERGE without blocking
-# [phase3_write_zone_B] from queuing new async writes.
+# to continuously trigger flush without blocking [phase3_write_zone_B] from
+# queuing new async writes.
 # -------------------------------------------------------------------------
 [phase3_flush_zone_B]
 offset=1%
