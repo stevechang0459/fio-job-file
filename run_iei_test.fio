@@ -1,0 +1,93 @@
+[global]
+ioengine=libaio
+direct=1
+iodepth=16
+group_reporting=1
+randrepeat=0
+norandommap=1
+# Point to the mounted data drive directory on your test PC
+directory=/mnt/illumina/SSDtest
+exitall_on_error=1
+continue_on_error=none
+
+# -------------------------------------------------------------------------
+# Phase 1: Simulate existing OS + Illumina software footprint (60% disk full)
+# Exhausts dynamic SLC cache so the drive enters steady-state GC like an OS drive.
+# NOTE: Adjust 'size=300g' to ~60% of the target SSD capacity.
+# -------------------------------------------------------------------------
+[phase1_os_footprint_60pct]
+filename=os_footprint_60pct.dat
+size=300g
+bs=1m
+rw=write
+iodepth=64
+numjobs=1
+
+# -------------------------------------------------------------------------
+# Phase 2: Physically write the 8 files for [seqread] and [randread] into TLC
+# 1. Fixed '0' instead of '$jobnum' so filenames match Phase 3 exactly.
+# 2. Pre-fill full 100m per file so any 10m-100m size rolled in Phase 3 hits
+#    100% real written TLC NAND blocks instead of unwritten fallocate extents.
+# -------------------------------------------------------------------------
+[phase2_init_seqread_files]
+stonewall
+filename_format=seqread.0.$filenum
+nrfiles=4
+filesize=100m
+bs=1m
+rw=write
+iodepth=64
+create_on_open=0
+overwrite=1
+
+[phase2_init_randread_files]
+filename_format=randread.0.$filenum
+nrfiles=4
+filesize=100m
+bs=1m
+rw=write
+iodepth=64
+create_on_open=0
+overwrite=1
+
+# =========================================================================
+# Phase 3: Exact IEI 4-Job Workload + OS Background Journal Flush Simulation
+# Unified runtime=36000 (10 hours) across all 4 concurrent jobs.
+# =========================================================================
+
+[seqwrite]
+stonewall
+rw=write
+bs=1m
+nrfiles=4
+filesize=10m-100m
+time_based=1
+runtime=36000
+
+[seqread]
+rw=read
+bs=1m
+filename_format=seqread.0.$filenum
+nrfiles=4
+filesize=10m-100m
+time_based=1
+runtime=36000
+
+[randwrite]
+rw=randwrite
+bssplit=4k/5:8k/10:16k/40:32k/20:64k/10:128k/5
+nrfiles=4
+filesize=10m-100m
+time_based=1
+runtime=36000
+# Simulate background OS (systemd-journald / syslog) periodic fsync on an OS drive
+fsync=64
+
+[randread]
+rw=randread
+bssplit=4k/5:8k/10:16k/40:32k/20:64k/10:128k/5
+filename_format=randread.0.$filenum
+nrfiles=4
+filesize=10m-100m
+time_based=1
+runtime=36000
